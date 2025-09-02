@@ -16,8 +16,9 @@ CREATE TABLE Product (
    
    PRIMARY KEY (product_id),
    FOREIGN KEY (category_id) REFERENCES category(category_id)
+   ON UPDATE CASCADE
+   ON DELETE CASCADE
 );
-
 
 CREATE TABLE inventory(
 inventory_id BIGINT AUTO_INCREMENT,
@@ -26,10 +27,11 @@ available_quantity INT NOT NULL CHECK (available_quantity >= 0),
 createdTime DATETIME NOT NULL,
 updatedTIME DATETIME NOT NULL,
 
+
 primary key (inventory_id),
 FOREIGN KEY (product_id) REFERENCES Product(product_id)
+ON UPDATE CASCADE ON DELETE CASCADE
 );
-
 
 CREATE TABLE Stocks(
 stock_Id BIGINT AUTO_INCREMENT,
@@ -41,9 +43,9 @@ product_price DECIMAL(10,2) NOT NULL,
 CONSTRAINT check_stock_values CHECK (stock_quantity > 0 AND stock_price > 0),
 PRIMARY KEY(stock_Id),
 FOREIGN KEY(inventory_id) REFERENCES inventory(inventory_id)
+ON UPDATE CASCADE ON DELETE CASCADE
 
 );
-
 
 CREATE TABLE Shipping_Address(
    shipping_id CHAR(36),
@@ -67,15 +69,14 @@ CREATE TABLE customer(
    CHECK (REGEXP_LIKE(phone_number, '^[+][1-9][0-9]{0,10}$'))
 );
 
-
 CREATE TABLE Customer_Shipping_Addresses(
 customer_address_ID CHAR(36),
 shipping_id CHAR(36) NOT NULL,
 customer_id CHAR(36) NOT NULL,
 
 PRIMARY KEY(customer_address_ID),
-foreign key(shipping_id) REFERENCES Shipping_Address(shipping_id),
-foreign key(customer_id) REFERENCES customer(customer_id)
+foreign key(shipping_id) REFERENCES Shipping_Address(shipping_id) ON UPDATE CASCADE ON DELETE CASCADE,
+foreign key(customer_id) REFERENCES customer(customer_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE Orders(
@@ -86,8 +87,8 @@ CREATE TABLE Orders(
    
    PRIMARY KEY(order_id),
    foreign key(customer_address_ID) REFERENCES Customer_Shipping_Addresses(customer_address_ID)
+   ON UPDATE CASCADE ON DELETE CASCADE
 );
-
 
 CREATE TABLE Order_items(
    order_id CHAR(36) ,
@@ -96,10 +97,9 @@ CREATE TABLE Order_items(
    price_of_items DECIMAL(10,2) NOT NULL,
    
    CONSTRAINT PK_ORDER PRIMARY KEY (order_id,stock_Id),
-   foreign key(order_id) REFERENCES Orders(order_id),
-   foreign key(stock_Id) REFERENCES Stocks(stock_Id)
+   foreign key(order_id) REFERENCES Orders(order_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+   foreign key(stock_Id) REFERENCES Stocks(stock_Id) ON UPDATE CASCADE ON DELETE RESTRICT
 );
-
 
 delimiter //
 CREATE PROCEDURE insertCategory(IN categoryname VARCHAR(100))
@@ -132,7 +132,6 @@ CREATE PROCEDURE insertNewProduct ( IN product_category BIGINT,IN product_Name V
 		  ( product_category, product_Name,  product_description );
 	COMMIT;
 END //
-
 
 delimiter //
 CREATE PROCEDURE insertNewinventory (IN product_id BIGINT)
@@ -207,7 +206,6 @@ CREATE PROCEDURE insertNewCustomer (IN customer_name VARCHAR(50),IN Email VARCHA
 		( UUID(), customer_name,  Email, phone_number);
 	COMMIT;
 END //
-
 
 delimiter //
 CREATE PROCEDURE insertNewShippingAddress (
@@ -405,7 +403,7 @@ p.product_description,
 getallSoldUnits(inv.inventory_id) AS total_units_sold
 
 FROM Product AS p
-JOIN inventory AS inv ON p.product_id = inv.inventory_id
+JOIN inventory AS inv ON p.product_id = inv.product_id
 ORDER BY total_units_sold DESC;
 ;
 
@@ -427,6 +425,7 @@ BEGIN
    RETURN averagePrice;
 END //
 DELIMITER ;
+
 
 delimiter //
 CREATE PROCEDURE generateMonthlyReport ()
@@ -486,6 +485,7 @@ GROUP BY oi.order_id, p.product_id, p.product_name;
 CREATE INDEX idx_orders_order_date ON Orders(order_date);
 CREATE INDEX idx_customer_name ON customer(customer_name);
 
+
 CALL insertCategory('STATIONARY');
 CALL insertCategory('ELECTRONIC');
 CALL insertCategory('cutleries');
@@ -496,38 +496,55 @@ CALL insertNewProduct(2,'Torch','rechargible torch with super light');
 select * from Product;
 
 CALL insertNewinventory(1);
+CALL insertNewinventory(2)
 select * from inventory;
 
 CALL addNewStock(1,20,10000);
 CALL addNewStock(1,10,12000);
+Call addNewStock(2,10,24000);
 select * from Stocks;
 
 CALL insertNewCustomer('Koliya','koliya@gmail.com','+94715839505');
+CALL insertNewCustomer('Damidu','damindu@gmail.com','+94725839510');
 select * from customer;
 
 CALL insertNewShippingAddress('240 1/2','KADUWELA','COLOMBO',10640,'SRI LANKA');
+CALL insertNewShippingAddress('1ST LANE','BADDAGANA','COLOMBO',20000,'SRI LANKA');
 select * from Shipping_Address;
 
-SET @cust := (SELECT customer_id FROM customer WHERE Email='koliya@gmail.com' ORDER BY customer_id DESC LIMIT 1);
-SET @ship := (SELECT shipping_id FROM Shipping_Address
-              WHERE street_address='240 1/2' AND city='KADUWELA' AND state='COLOMBO'
-                AND postal_code=10640 AND country='SRI LANKA'
-              ORDER BY shipping_id DESC LIMIT 1);
+SET @cust1 := (SELECT customer_id FROM customer WHERE Email='koliya@gmail.com');
+SET @cust2 := (SELECT customer_id FROM customer WHERE Email='damindu@gmail.com');
 
-CALL insertcustomerAddress(@ship, @cust);
+
+SET @ship1 := (SELECT shipping_id FROM Shipping_Address WHERE street_address='240 1/2' AND city='KADUWELA' AND state='COLOMBO'
+                AND postal_code=10640 AND country='SRI LANKA');
+SET @ship2 := (SELECT shipping_id FROM Shipping_Address WHERE street_address='1ST LANE' AND city='BADDAGANA' AND state='COLOMBO'
+                AND postal_code=20000 AND country='SRI LANKA');
+
+CALL insertcustomerAddress(@ship1, @cust1);
+CALL insertcustomerAddress(@ship2, @cust2);
+
 SELECT * FROM Customer_Shipping_Addresses;
 
-SET @custAddr := (SELECT customer_address_ID
+SET @custAddr1 := (SELECT customer_address_ID
                   FROM Customer_Shipping_Addresses
-                  WHERE customer_id=@cust AND shipping_id=@ship);
+                  WHERE customer_id=@cust1 AND shipping_id=@ship1);
+SET @custAddr2 := (SELECT customer_address_ID
+                  FROM Customer_Shipping_Addresses
+                  WHERE customer_id=@cust2 AND shipping_id=@ship2);
 
-CALL insertnewOrder( @custAddr,2200);
+CALL insertnewOrder( @custAddr1,2200);
+CALL insertnewOrder( @custAddr2,3400);
 SELECT * FROM Orders;
 
-SET @orderID := (SELECT order_id FROM Orders
-              WHERE customer_address_ID= @custAddr);
-CALL insertnewOrderItems(@orderID,1,2);
-CALL insertnewOrderItems(@orderID,2,1);
+SET @orderID1 := (SELECT order_id FROM Orders WHERE customer_address_ID= @custAddr1);
+SET @orderID2 := (SELECT order_id FROM Orders WHERE customer_address_ID= @custAddr2);
+    
+CALL insertnewOrderItems(@orderID1,1,2);
+CALL insertnewOrderItems(@orderID1,2,1);
+
+CALL insertnewOrderItems(@orderID2,3,1);
+CALL insertnewOrderItems(@orderID2,1,2);
 
 select * from order_items;
 
