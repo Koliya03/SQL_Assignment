@@ -52,10 +52,12 @@ CREATE TABLE Shipping_Address(
    street_address VARCHAR(100) NOT NULL,
    city VARCHAR(20)NOT NULL,
    state VARCHAR(20) NOT NULL,
-   postal_code INT  CHECK (postal_code >= 0),
+   postal_code VARCHAR(5) ,
    country VARCHAR(30) NOT NULL,
    
-   PRIMARY KEY(shipping_id)
+   PRIMARY KEY(shipping_id),
+   CONSTRAINT ck_postal_code
+   CHECK (REGEXP_LIKE(postal_code, '^[0-9]{0,5}$'))
 );
 
 CREATE TABLE customer(
@@ -74,9 +76,11 @@ customer_address_ID CHAR(36),
 shipping_id CHAR(36) NOT NULL,
 customer_id CHAR(36) NOT NULL,
 
+CONSTRAINT shipping_custom_unique UNIQUE(shipping_id, customer_id),
 PRIMARY KEY(customer_address_ID),
 foreign key(shipping_id) REFERENCES Shipping_Address(shipping_id) ON UPDATE CASCADE ON DELETE CASCADE,
 foreign key(customer_id) REFERENCES customer(customer_id) ON UPDATE CASCADE ON DELETE CASCADE
+
 );
 
 CREATE TABLE Orders(
