@@ -217,7 +217,7 @@ CREATE PROCEDURE insertNewShippingAddress (
 	IN street_address VARCHAR(100),
 	IN city VARCHAR(20),
 	IN state VARCHAR(20),
-	IN postal_code INT,
+	IN postal_code VARCHAR(5),
 	IN country VARCHAR(30) )
    BEGIN
    DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -513,8 +513,8 @@ CALL insertNewCustomer('Koliya','koliya@gmail.com','+94715839505');
 CALL insertNewCustomer('Damidu','damindu@gmail.com','+94725839510');
 select * from customer;
 
-CALL insertNewShippingAddress('240 1/2','KADUWELA','COLOMBO',10640,'SRI LANKA');
-CALL insertNewShippingAddress('1ST LANE','BADDAGANA','COLOMBO',20000,'SRI LANKA');
+CALL insertNewShippingAddress('240 1/2','KADUWELA','COLOMBO','10640','SRI LANKA');
+CALL insertNewShippingAddress('1ST LANE','BADDAGANA','COLOMBO','20000','SRI LANKA');
 select * from Shipping_Address;
 
 SET @cust1 := (SELECT customer_id FROM customer WHERE Email='koliya@gmail.com');
@@ -522,9 +522,9 @@ SET @cust2 := (SELECT customer_id FROM customer WHERE Email='damindu@gmail.com')
 
 
 SET @ship1 := (SELECT shipping_id FROM Shipping_Address WHERE street_address='240 1/2' AND city='KADUWELA' AND state='COLOMBO'
-                AND postal_code=10640 AND country='SRI LANKA');
+                AND postal_code='10640' AND country='SRI LANKA');
 SET @ship2 := (SELECT shipping_id FROM Shipping_Address WHERE street_address='1ST LANE' AND city='BADDAGANA' AND state='COLOMBO'
-                AND postal_code=20000 AND country='SRI LANKA');
+                AND postal_code='20000' AND country='SRI LANKA');
 
 CALL insertcustomerAddress(@ship1, @cust1);
 CALL insertcustomerAddress(@ship2, @cust2);
