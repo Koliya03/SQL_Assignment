@@ -496,7 +496,7 @@ CALL insertNewProduct(2,'Torch','rechargible torch with super light');
 select * from Product;
 
 CALL insertNewinventory(1);
-CALL insertNewinventory(2)
+CALL insertNewinventory(2);
 select * from inventory;
 
 CALL addNewStock(1,20,10000);
@@ -550,6 +550,7 @@ select * from order_items;
 
 SELECT * FROM v_top_selling_products;
 SELECT getAveragePriceOfProduct(1);
+SELECT getAveragePriceOfProduct(2);
 CALL generateMonthlyReport();
 
 select * from v_top_selling_products
