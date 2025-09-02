@@ -157,6 +157,7 @@ END //
 delimiter //
 CREATE PROCEDURE addNewStock(IN inventoryID BIGINT,IN stockQuantity BIGINT,IN stockPrice DECIMAL(10,2))
 BEGIN
+	DECLARE available_stockQuantity INT;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
@@ -165,7 +166,7 @@ BEGIN
 
     START TRANSACTION;
 		
-        SELECT available_quantity
+        SELECT available_quantity INTO available_stockQuantity
 		FROM Inventory
 		WHERE inventory_id = inventoryID
 		FOR UPDATE;
