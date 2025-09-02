@@ -553,8 +553,6 @@ SELECT getAveragePriceOfProduct(1);
 SELECT getAveragePriceOfProduct(2);
 CALL generateMonthlyReport();
 
-select * from v_top_selling_products
-
 CREATE ROLE IF NOT EXISTS 'role_shop4all_admin', 'role_shop4all_user';
 GRANT ALL  ON Shop4All.* TO 'role_shop4all_admin';
 
