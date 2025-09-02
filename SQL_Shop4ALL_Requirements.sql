@@ -481,10 +481,10 @@ JOIN inventory AS i ON i.inventory_id = s.inventory_id
 JOIN Product AS p ON p.product_id = i.product_id
 GROUP BY oi.order_id, p.product_id, p.product_name;
 
-
 CREATE INDEX idx_orders_order_date ON Orders(order_date);
 CREATE INDEX idx_customer_name ON customer(customer_name);
-
+CREATE INDEX idx_product_name ON Product(product_name);
+CREATE INDEX idx_category_name ON category(category_name);
 
 CALL insertCategory('STATIONARY');
 CALL insertCategory('ELECTRONIC');
