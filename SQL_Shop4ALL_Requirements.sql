@@ -165,6 +165,12 @@ BEGIN
     END;
 
     START TRANSACTION;
+		
+        SELECT available_quantity
+		FROM Inventory
+		WHERE inventory_id = inventoryID
+		FOR UPDATE;
+    
 		INSERT INTO Stocks(
 		inventory_id,
 		stock_quantity,
@@ -288,15 +294,33 @@ DELIMITER ;
 
 delimiter //
 CREATE PROCEDURE insertnewOrderItems (IN order_id CHAR(36),IN stock_Id BIGINT,IN num_of_items INT )
+
    BEGIN
    DECLARE INVENTORYID BIGINT;
+   DECLARE   available_inventory_quantity INT;
+
    DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
         RESIGNAL;
     END;
-
+    
     START TRANSACTION;
+        SELECT inventory_id INTO INVENTORYID
+        FROM Stocks AS S
+        WHERE S.stock_Id = stock_Id
+        FOR UPDATE;
+
+        SELECT available_quantity INTO available_inventory_quantity
+        FROM Inventory
+        WHERE inventory_id = INVENTORYID
+        FOR UPDATE;
+
+        IF available_inventory_quantity < num_of_items THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Insufficient available_quantity';
+        END IF;
+
 		INSERT INTO Order_items(
 		order_id,
 		stock_Id,
@@ -305,15 +329,14 @@ CREATE PROCEDURE insertnewOrderItems (IN order_id CHAR(36),IN stock_Id BIGINT,IN
 		) VALUES
 		( order_id, stock_Id,  num_of_items, getOrderItemsPrice(stock_Id,num_of_items));
         
-        SELECT inventory_id INTO INVENTORYID
-        FROM Stocks AS S
-        WHERE S.stock_Id = stock_Id;
+        
         UPDATE Inventory
 		SET available_quantity = available_quantity - num_of_items,
 			updatedTIME = NOW()
 		WHERE inventory_id = INVENTORYID;
 	COMMIT;
 END //
+
 
 DELIMITER //
 CREATE FUNCTION getTotalOrderPrice( orderid CHAR(36))
@@ -383,7 +406,7 @@ getallSoldUnits(inv.inventory_id) AS total_units_sold
 
 FROM Product AS p
 JOIN inventory AS inv ON p.product_id = inv.inventory_id
-ORDER BY DECS;
+ORDER BY total_units_sold DESC;
 ;
 
 -- Requirement number 2
@@ -404,7 +427,6 @@ BEGIN
    RETURN averagePrice;
 END //
 DELIMITER ;
-
 
 delimiter //
 CREATE PROCEDURE generateMonthlyReport ()
@@ -428,6 +450,41 @@ CREATE PROCEDURE generateMonthlyReport ()
 	COMMIT;
 END //
 
+CREATE OR REPLACE  VIEW view_category AS 
+SELECT category_name
+FROM category;
+
+CREATE OR REPLACE VIEW view_product AS
+SELECT product_name,product_description
+FROM Product;
+
+CREATE OR REPLACE  VIEW view_Shipping_Address AS
+SELECT street_address,city,state,postal_code,country
+FROM Shipping_Address;
+
+CREATE OR REPLACE VIEW view_orders AS 
+SELECT Orders.order_id,customer.customer_name,Orders.order_date,Orders.order_price
+FROM Orders
+JOIN Customer_Shipping_Addresses AS address
+ON Orders.customer_address_ID =address.customer_address_ID
+JOIN  customer
+ON customer.customer_id = address.customer_id;
+
+CREATE OR REPLACE VIEW view_order_items AS
+SELECT
+  oi.order_id,
+  p.product_name,
+  SUM(oi.num_of_items)   AS total_qty,
+  SUM(oi.price_of_items) AS total_price
+FROM Order_items oi
+JOIN Stocks AS s ON s.stock_Id = oi.stock_Id
+JOIN inventory AS i ON i.inventory_id = s.inventory_id
+JOIN Product AS p ON p.product_id = i.product_id
+GROUP BY oi.order_id, p.product_id, p.product_name;
+
+
+CREATE INDEX idx_orders_order_date ON Orders(order_date);
+CREATE INDEX idx_customer_name ON customer(customer_name);
 
 CALL insertCategory('STATIONARY');
 CALL insertCategory('ELECTRONIC');
@@ -478,7 +535,32 @@ SELECT * FROM v_top_selling_products;
 SELECT getAveragePriceOfProduct(1);
 CALL generateMonthlyReport();
 
-
 select * from v_top_selling_products
--- drop database shop4all
 
+CREATE ROLE IF NOT EXISTS 'role_shop4all_admin', 'role_shop4all_user';
+GRANT ALL  ON Shop4All.* TO 'role_shop4all_admin';
+
+GRANT SELECT  ON Shop4All.view_category TO 'role_shop4all_user';
+GRANT SELECT  ON Shop4All.view_product TO 'role_shop4all_user';
+GRANT SELECT  ON Shop4All.view_Shipping_Address TO 'role_shop4all_user';
+GRANT SELECT  ON Shop4All.view_orders TO 'role_shop4all_user';
+GRANT SELECT  ON Shop4All.view_order_items TO 'role_shop4all_user';
+
+GRANT EXECUTE ON PROCEDURE Shop4All.insertNewCustomer TO 'role_shop4all_user'; 
+GRANT EXECUTE ON PROCEDURE Shop4All.insertNewShippingAddress TO 'role_shop4all_user';
+GRANT EXECUTE ON PROCEDURE Shop4All.insertnewOrder TO 'role_shop4all_user'; 
+GRANT EXECUTE ON PROCEDURE Shop4All.insertnewOrderItems TO 'role_shop4all_user';
+
+CREATE USER IF NOT EXISTS 'Admin'@'localhost' IDENTIFIED BY 'admin';
+CREATE USER IF NOT EXISTS 'User'@'localhost'  IDENTIFIED BY 'user';
+
+GRANT 'role_shop4all_admin' TO 'Admin'@'localhost';
+GRANT 'role_shop4all_user'  TO 'User'@'localhost';
+
+SET DEFAULT ROLE ALL TO 'Admin'@'localhost','User'@'localhost';
+
+SHOW GRANTS FOR 'Admin'@'localhost';
+SHOW GRANTS FOR 'User'@'localhost';
+
+select current_user();
+select User,Host from mysql.user
